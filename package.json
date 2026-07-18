@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/web"
+  ],
   "description": "Confidential cross-border payment corridors on Stellar",
   "scripts": {
     "circuit:disclosure": "bash scripts/build-disclosure.sh",
@@ -46,5 +49,10 @@
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^14.6.1"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1",
+    "underscore": "^1.13.8",
+    "ws": "^8.21.1"
   }
 }

@@ -29,7 +29,10 @@ pub struct MockOracle;
 #[contractimpl]
 impl MockOracle {
     pub fn lastprice(_e: Env, _asset: Asset) -> Option<PriceData> {
-        Some(PriceData { price: 5_000_000_000_000i128, timestamp: 1_700_000_000u64 })
+        Some(PriceData {
+            price: 5_000_000_000_000i128,
+            timestamp: 1_700_000_000u64,
+        })
     }
     // Last `n` records (newest first), all at the spot price — the median path the
     // settlement gate uses sees a stable 5e12 median, matching lastprice.
@@ -37,7 +40,10 @@ impl MockOracle {
         let mut v = vec![&e];
         let mut i = 0u32;
         while i < n {
-            v.push_back(PriceData { price: 5_000_000_000_000i128, timestamp: 1_700_000_000u64 });
+            v.push_back(PriceData {
+                price: 5_000_000_000_000i128,
+                timestamp: 1_700_000_000u64,
+            });
             i += 1;
         }
         Some(v)
@@ -56,16 +62,25 @@ pub struct MockOracleOutlier;
 #[contractimpl]
 impl MockOracleOutlier {
     pub fn lastprice(_e: Env, _asset: Asset) -> Option<PriceData> {
-        Some(PriceData { price: 100_000_000_000_000i128, timestamp: 1_700_000_000u64 })
+        Some(PriceData {
+            price: 100_000_000_000_000i128,
+            timestamp: 1_700_000_000u64,
+        })
     }
     // 5 records: one manipulated outlier (100e12) + four honest (5e12). Sorted median
     // (index 2 of [5,5,5,5,100]e12) = 5e12 — the outlier can't move the floor.
     pub fn prices(e: Env, _asset: Asset, _n: u32) -> Option<Vec<PriceData>> {
         let mut v = vec![&e];
-        v.push_back(PriceData { price: 100_000_000_000_000i128, timestamp: 1_700_000_000u64 });
+        v.push_back(PriceData {
+            price: 100_000_000_000_000i128,
+            timestamp: 1_700_000_000u64,
+        });
         let mut i = 0u32;
         while i < 4 {
-            v.push_back(PriceData { price: 5_000_000_000_000i128, timestamp: 1_700_000_000u64 });
+            v.push_back(PriceData {
+                price: 5_000_000_000_000i128,
+                timestamp: 1_700_000_000u64,
+            });
             i += 1;
         }
         Some(v)
@@ -83,12 +98,21 @@ pub struct MockOracleThin;
 #[contractimpl]
 impl MockOracleThin {
     pub fn lastprice(_e: Env, _asset: Asset) -> Option<PriceData> {
-        Some(PriceData { price: 5_000_000_000_000i128, timestamp: 1_700_000_000u64 })
+        Some(PriceData {
+            price: 5_000_000_000_000i128,
+            timestamp: 1_700_000_000u64,
+        })
     }
     pub fn prices(e: Env, _asset: Asset, _n: u32) -> Option<Vec<PriceData>> {
         let mut v = vec![&e];
-        v.push_back(PriceData { price: 5_000_000_000_000i128, timestamp: 1_700_000_000u64 });
-        v.push_back(PriceData { price: 5_000_000_000_000i128, timestamp: 1_700_000_000u64 });
+        v.push_back(PriceData {
+            price: 5_000_000_000_000i128,
+            timestamp: 1_700_000_000u64,
+        });
+        v.push_back(PriceData {
+            price: 5_000_000_000_000i128,
+            timestamp: 1_700_000_000u64,
+        });
         Some(v) // only 2 < FX_MIN_RECORDS
     }
     pub fn decimals(_e: Env) -> u32 {
@@ -151,13 +175,19 @@ fn poseidon_cost_probe() {
     let a = b32_dec(&env, 1);
     env.cost_estimate().budget().reset_unlimited();
     let _ = crate::poseidon::hash2(&env, &a, &a);
-    std::println!("[poseidon] ONE HASH cost:\n{:?}", env.cost_estimate().budget());
+    std::println!(
+        "[poseidon] ONE HASH cost:\n{:?}",
+        env.cost_estimate().budget()
+    );
     let mut z = BytesN::from_array(&env, &[0u8; 32]);
     env.cost_estimate().budget().reset_unlimited();
     for _ in 0..10 {
         z = crate::poseidon::hash2(&env, &z, &z);
     }
-    std::println!("[poseidon] TEN HASHES (depth-10 insert) cost:\n{:?}", env.cost_estimate().budget());
+    std::println!(
+        "[poseidon] TEN HASHES (depth-10 insert) cost:\n{:?}",
+        env.cost_estimate().budget()
+    );
 }
 
 fn amt_bytes(env: &Env, amount: i128) -> BytesN<32> {
@@ -229,7 +259,7 @@ fn setup(env: &Env) -> Ctx {
             v.clone(),
             v.clone(),
             v.clone(),
-            v.clone(), // update verifier
+            v.clone(),     // update verifier
             b32(env, 0),   // initial_root
             b32(env, 100), // asp_root
             deny,
@@ -303,7 +333,13 @@ fn set_asp_root_updates_view() {
 fn set_deny_list_updates_view() {
     let env = Env::default();
     let c = setup(&env);
-    let new: Vec<BytesN<32>> = vec![&env, b32(&env, 81), b32(&env, 82), b32(&env, 83), b32(&env, 84)];
+    let new: Vec<BytesN<32>> = vec![
+        &env,
+        b32(&env, 81),
+        b32(&env, 82),
+        b32(&env, 83),
+        b32(&env, 84),
+    ];
     c.pool.set_deny_list(&new);
     assert_eq!(c.pool.deny_list(), new);
 }
@@ -324,7 +360,16 @@ fn deposit_pulls_tokens_and_records_commitment() {
     let env = Env::default();
     let c = setup(&env);
     let commit = b32(&env, 1);
-    assert_eq!(c.pool.deposit(&c.user, &300, &commit, &dummy_proof(&env), &dummy_proof(&env)), 0);
+    assert_eq!(
+        c.pool.deposit(
+            &c.user,
+            &300,
+            &commit,
+            &dummy_proof(&env),
+            &dummy_proof(&env)
+        ),
+        0
+    );
     assert_eq!(c.pool.balance(), 300); // tokens now custodied by the pool
     assert_eq!(c.token.balance(&c.user), 700);
     assert!(c.pool.is_commitment_known(&commit));
@@ -338,8 +383,20 @@ fn deposit_rejects_duplicate_commitment() {
     let env = Env::default();
     let c = setup(&env);
     let commit = b32(&env, 1);
-    c.pool.deposit(&c.user, &100, &commit, &dummy_proof(&env), &dummy_proof(&env));
-    c.pool.deposit(&c.user, &100, &commit, &dummy_proof(&env), &dummy_proof(&env)); // dup -> #10
+    c.pool.deposit(
+        &c.user,
+        &100,
+        &commit,
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
+    c.pool.deposit(
+        &c.user,
+        &100,
+        &commit,
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    ); // dup -> #10
 }
 
 #[test]
@@ -348,22 +405,41 @@ fn deposit_rejects_amount_over_64_bits() {
     let env = Env::default();
     let c = setup(&env);
     // 2^64 stroops can't fit the disclosure circuit's 64-bit range — rejected early.
-    c.pool.deposit(&c.user, &(1i128 << 64), &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &(1i128 << 64),
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
 }
 
 #[test]
 fn withdraw_releases_bound_amount() {
     let env = Env::default();
     let c = setup(&env);
-    c.pool.deposit(&c.user, &300, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &300,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
 
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     // public_amount must equal the field-negative of the released amount (binding)
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, 120),
-        &nulls, &outs, &recipient, &120, &None, &None,
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, 120),
+        &nulls,
+        &outs,
+        &recipient,
+        &120,
+        &None,
+        &None,
     );
     assert_eq!(c.token.balance(&recipient), 120);
     assert_eq!(c.pool.balance(), 180);
@@ -374,14 +450,27 @@ fn withdraw_releases_bound_amount() {
 fn withdraw_amount_must_match_public_amount() {
     let env = Env::default();
     let c = setup(&env);
-    c.pool.deposit(&c.user, &300, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &300,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     // public_amount binds to 50 but caller tries to release 120 -> rejected
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, 50),
-        &nulls, &outs, &recipient, &120, &None, &None,
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, 50),
+        &nulls,
+        &outs,
+        &recipient,
+        &120,
+        &None,
+        &None,
     );
 }
 
@@ -395,14 +484,27 @@ fn withdraw_oracle_gate_passes_when_rate_meets_floor() {
     let c = setup(&env);
     StellarAssetClient::new(&env, &c.token.address).mint(&c.user, &30_000_000);
     let two_usdc = 20_000_000i128; // 2 whole USDC in 7-dp stroops
-    c.pool.deposit(&c.user, &two_usdc, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &two_usdc,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     let sym = soroban_sdk::Symbol::new(&env, "MXN");
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, two_usdc),
-        &nulls, &outs, &recipient, &two_usdc, &Some(sym), &Some(40),
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, two_usdc),
+        &nulls,
+        &outs,
+        &recipient,
+        &two_usdc,
+        &Some(sym),
+        &Some(40),
     );
     assert_eq!(c.token.balance(&recipient), two_usdc); // released: live rate met the floor
 }
@@ -414,15 +516,28 @@ fn withdraw_oracle_gate_rejects_below_floor() {
     let c = setup(&env);
     StellarAssetClient::new(&env, &c.token.address).mint(&c.user, &30_000_000);
     let two_usdc = 20_000_000i128;
-    c.pool.deposit(&c.user, &two_usdc, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &two_usdc,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     let sym = soroban_sdk::Symbol::new(&env, "MXN");
     // quote is 40 local; demanding 41 must reject and release nothing.
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, two_usdc),
-        &nulls, &outs, &recipient, &two_usdc, &Some(sym), &Some(41),
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, two_usdc),
+        &nulls,
+        &outs,
+        &recipient,
+        &two_usdc,
+        &Some(sym),
+        &Some(41),
     );
 }
 
@@ -439,14 +554,27 @@ fn withdraw_oracle_gate_rejects_stale_feed() {
     env.ledger().set_timestamp(1_700_000_000 + 7200); // 2h after the mock price stamp > 3600s bound
     StellarAssetClient::new(&env, &c.token.address).mint(&c.user, &30_000_000);
     let two_usdc = 20_000_000i128;
-    c.pool.deposit(&c.user, &two_usdc, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &two_usdc,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     let sym = soroban_sdk::Symbol::new(&env, "MXN");
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, two_usdc),
-        &nulls, &outs, &recipient, &two_usdc, &Some(sym), &Some(1),
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, two_usdc),
+        &nulls,
+        &outs,
+        &recipient,
+        &two_usdc,
+        &Some(sym),
+        &Some(1),
     );
 }
 
@@ -462,14 +590,27 @@ fn withdraw_oracle_gate_fails_closed_on_dead_feed() {
     c.pool.set_fx_oracle(&empty);
     StellarAssetClient::new(&env, &c.token.address).mint(&c.user, &30_000_000);
     let two_usdc = 20_000_000i128;
-    c.pool.deposit(&c.user, &two_usdc, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &two_usdc,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     let sym = soroban_sdk::Symbol::new(&env, "MXN");
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, two_usdc),
-        &nulls, &outs, &recipient, &two_usdc, &Some(sym), &Some(1),
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, two_usdc),
+        &nulls,
+        &outs,
+        &recipient,
+        &two_usdc,
+        &Some(sym),
+        &Some(1),
     );
 }
 
@@ -486,14 +627,27 @@ fn withdraw_oracle_gate_median_ignores_spot_outlier() {
     c.pool.set_fx_oracle(&outlier);
     StellarAssetClient::new(&env, &c.token.address).mint(&c.user, &30_000_000);
     let two_usdc = 20_000_000i128;
-    c.pool.deposit(&c.user, &two_usdc, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &two_usdc,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     let sym = soroban_sdk::Symbol::new(&env, "MXN");
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, two_usdc),
-        &nulls, &outs, &recipient, &two_usdc, &Some(sym), &Some(40),
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, two_usdc),
+        &nulls,
+        &outs,
+        &recipient,
+        &two_usdc,
+        &Some(sym),
+        &Some(40),
     );
     assert_eq!(c.token.balance(&recipient), two_usdc); // released: median (5e12) met the 40 floor
 }
@@ -509,14 +663,27 @@ fn withdraw_oracle_gate_rejects_thin_feed() {
     c.pool.set_fx_oracle(&thin);
     StellarAssetClient::new(&env, &c.token.address).mint(&c.user, &30_000_000);
     let two_usdc = 20_000_000i128;
-    c.pool.deposit(&c.user, &two_usdc, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &two_usdc,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     let sym = soroban_sdk::Symbol::new(&env, "MXN");
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, two_usdc),
-        &nulls, &outs, &recipient, &two_usdc, &Some(sym), &Some(1),
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, two_usdc),
+        &nulls,
+        &outs,
+        &recipient,
+        &two_usdc,
+        &Some(sym),
+        &Some(1),
     );
 }
 
@@ -544,7 +711,14 @@ fn transfer_rejects_shifted_io_split() {
     // attacker shifts a nullifier (n1=b32(11)) into the commitments segment: 1 + 3
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 11), b32(&env, 20), b32(&env, 21)];
-    c.pool.transfer(&dummy_proof(&env), &b32(&env, 0), &b32(&env, 0), &b32(&env, 5), &nulls, &outs);
+    c.pool.transfer(
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &b32(&env, 0),
+        &b32(&env, 5),
+        &nulls,
+        &outs,
+    );
 }
 
 #[test]
@@ -552,13 +726,26 @@ fn transfer_rejects_shifted_io_split() {
 fn withdraw_rejects_shifted_io_split() {
     let env = Env::default();
     let c = setup(&env);
-    c.pool.deposit(&c.user, &300, &b32(&env, 1), &dummy_proof(&env), &dummy_proof(&env));
+    c.pool.deposit(
+        &c.user,
+        &300,
+        &b32(&env, 1),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
     let recipient = Address::generate(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 11), b32(&env, 20), b32(&env, 21)];
     c.pool.withdraw(
-        &dummy_proof(&env), &b32(&env, 0), &neg_amt_bytes(&env, 120),
-        &nulls, &outs, &recipient, &120, &None, &None,
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &neg_amt_bytes(&env, 120),
+        &nulls,
+        &outs,
+        &recipient,
+        &120,
+        &None,
+        &None,
     );
 }
 
@@ -568,7 +755,14 @@ fn transfer_spends_nullifiers_and_records_outputs() {
     let c = setup(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
-    c.pool.transfer(&dummy_proof(&env), &b32(&env, 0), &b32(&env, 0), &b32(&env, 5), &nulls, &outs);
+    c.pool.transfer(
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &b32(&env, 0),
+        &b32(&env, 5),
+        &nulls,
+        &outs,
+    );
     assert!(c.pool.is_nullifier_used(&b32(&env, 10)));
     assert!(c.pool.is_commitment_known(&b32(&env, 20)));
 }
@@ -580,8 +774,22 @@ fn transfer_double_spend_rejected() {
     let c = setup(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
-    c.pool.transfer(&dummy_proof(&env), &b32(&env, 0), &b32(&env, 0), &b32(&env, 5), &nulls, &outs);
-    c.pool.transfer(&dummy_proof(&env), &b32(&env, 0), &b32(&env, 0), &b32(&env, 5), &nulls, &outs);
+    c.pool.transfer(
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &b32(&env, 0),
+        &b32(&env, 5),
+        &nulls,
+        &outs,
+    );
+    c.pool.transfer(
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &b32(&env, 0),
+        &b32(&env, 5),
+        &nulls,
+        &outs,
+    );
 }
 
 #[test]
@@ -591,7 +799,14 @@ fn transfer_unknown_root_rejected() {
     let c = setup(&env);
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
-    c.pool.transfer(&dummy_proof(&env), &b32(&env, 250), &b32(&env, 0), &b32(&env, 5), &nulls, &outs);
+    c.pool.transfer(
+        &dummy_proof(&env),
+        &b32(&env, 250),
+        &b32(&env, 0),
+        &b32(&env, 5),
+        &nulls,
+        &outs,
+    );
 }
 
 // A pure shielded transfer must move zero external value. A positive public_amount
@@ -606,7 +821,14 @@ fn transfer_rejects_nonzero_public_amount() {
     let nulls: Vec<BytesN<32>> = vec![&env, b32(&env, 10), b32(&env, 11)];
     let outs: Vec<BytesN<32>> = vec![&env, b32(&env, 20), b32(&env, 21)];
     // root 0 is the known genesis; public_amount = 5 (non-zero) must be rejected.
-    c.pool.transfer(&dummy_proof(&env), &b32(&env, 0), &b32(&env, 5), &b32(&env, 5), &nulls, &outs);
+    c.pool.transfer(
+        &dummy_proof(&env),
+        &b32(&env, 0),
+        &b32(&env, 5),
+        &b32(&env, 5),
+        &nulls,
+        &outs,
+    );
 }
 
 #[test]
@@ -614,8 +836,16 @@ fn disclose_requires_known_commitment() {
     let env = Env::default();
     let c = setup(&env);
     let commit = b32(&env, 1);
-    c.pool.deposit(&c.user, &100, &commit, &dummy_proof(&env), &dummy_proof(&env));
-    assert!(c.pool.disclose(&dummy_proof(&env), &commit, &b32(&env, 50), &b32(&env, 42)));
+    c.pool.deposit(
+        &c.user,
+        &100,
+        &commit,
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
+    assert!(c
+        .pool
+        .disclose(&dummy_proof(&env), &commit, &b32(&env, 50), &b32(&env, 42)));
 }
 
 #[test]
@@ -623,7 +853,12 @@ fn disclose_requires_known_commitment() {
 fn disclose_unknown_commitment_rejected() {
     let env = Env::default();
     let c = setup(&env);
-    c.pool.disclose(&dummy_proof(&env), &b32(&env, 200), &b32(&env, 50), &b32(&env, 42));
+    c.pool.disclose(
+        &dummy_proof(&env),
+        &b32(&env, 200),
+        &b32(&env, 50),
+        &b32(&env, 42),
+    );
 }
 
 #[test]
@@ -635,8 +870,10 @@ fn register_root_verified_advances_from_known_root() {
     let newr = b32(&env, 77);
     assert!(!c.pool.is_root_known(&newr));
     // The leaf must be a backed commitment first (a real deposit moved tokens in).
-    c.pool.deposit(&c.user, &10, &leaf, &dummy_proof(&env), &dummy_proof(&env));
-    c.pool.register_root_verified(&dummy_proof(&env), &old, &leaf, &newr);
+    c.pool
+        .deposit(&c.user, &10, &leaf, &dummy_proof(&env), &dummy_proof(&env));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &old, &leaf, &newr);
     assert!(c.pool.is_root_known(&newr));
     assert_eq!(c.pool.current_root(), newr);
     assert!(c.pool.is_commitment_known(&leaf));
@@ -652,7 +889,8 @@ fn register_root_verified_rejects_undeposited_leaf() {
     let c = setup(&env);
     let old = b32(&env, 0);
     // leaf 200 was never deposited (no tokens backing it) -> rejected.
-    c.pool.register_root_verified(&dummy_proof(&env), &old, &b32(&env, 200), &b32(&env, 77));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &old, &b32(&env, 200), &b32(&env, 77));
 }
 
 // Insert-once: the SAME backed commitment cannot be inserted twice (a second
@@ -663,12 +901,15 @@ fn register_root_verified_rejects_double_insert() {
     let env = Env::default();
     let c = setup(&env);
     let leaf = b32(&env, 42);
-    c.pool.deposit(&c.user, &10, &leaf, &dummy_proof(&env), &dummy_proof(&env));
+    c.pool
+        .deposit(&c.user, &10, &leaf, &dummy_proof(&env), &dummy_proof(&env));
     let g = c.pool.current_root();
-    c.pool.register_root_verified(&dummy_proof(&env), &g, &leaf, &b32(&env, 77));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &g, &leaf, &b32(&env, 77));
     // try to insert the very same commitment again from the new current root
     let r1 = c.pool.current_root();
-    c.pool.register_root_verified(&dummy_proof(&env), &r1, &leaf, &b32(&env, 88));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &r1, &leaf, &b32(&env, 88));
 }
 
 #[test]
@@ -676,7 +917,12 @@ fn register_root_verified_rejects_double_insert() {
 fn register_root_verified_rejects_unknown_old_root() {
     let env = Env::default();
     let c = setup(&env);
-    c.pool.register_root_verified(&dummy_proof(&env), &b32(&env, 250), &b32(&env, 42), &b32(&env, 77));
+    c.pool.register_root_verified(
+        &dummy_proof(&env),
+        &b32(&env, 250),
+        &b32(&env, 42),
+        &b32(&env, 77),
+    );
 }
 
 // Accumulator semantics: an insert must build on the CURRENT root. Inserting from
@@ -688,11 +934,19 @@ fn register_root_verified_rejects_stale_root() {
     let env = Env::default();
     let c = setup(&env);
     let genesis = c.pool.current_root();
-    c.pool.deposit(&c.user, &10, &b32(&env, 42), &dummy_proof(&env), &dummy_proof(&env));
-    c.pool.register_root_verified(&dummy_proof(&env), &genesis, &b32(&env, 42), &b32(&env, 77));
+    c.pool.deposit(
+        &c.user,
+        &10,
+        &b32(&env, 42),
+        &dummy_proof(&env),
+        &dummy_proof(&env),
+    );
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &genesis, &b32(&env, 42), &b32(&env, 77));
     // current_root is now 77; inserting again from the stale genesis must fail
     // (this fails on the stale root before the leaf-backing check is reached).
-    c.pool.register_root_verified(&dummy_proof(&env), &genesis, &b32(&env, 43), &b32(&env, 88));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &genesis, &b32(&env, 43), &b32(&env, 88));
 }
 
 // Leaves are stored on-chain in order, so a client can reconstruct the exact tree
@@ -705,11 +959,15 @@ fn register_root_verified_stores_ordered_leaves() {
     let g = c.pool.current_root();
     let l0 = b32(&env, 42);
     let l1 = b32(&env, 43);
-    c.pool.deposit(&c.user, &10, &l0, &dummy_proof(&env), &dummy_proof(&env));
-    c.pool.deposit(&c.user, &10, &l1, &dummy_proof(&env), &dummy_proof(&env));
-    c.pool.register_root_verified(&dummy_proof(&env), &g, &l0, &b32(&env, 77));
+    c.pool
+        .deposit(&c.user, &10, &l0, &dummy_proof(&env), &dummy_proof(&env));
+    c.pool
+        .deposit(&c.user, &10, &l1, &dummy_proof(&env), &dummy_proof(&env));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &g, &l0, &b32(&env, 77));
     let r1 = c.pool.current_root(); // accumulator: next insert builds on this
-    c.pool.register_root_verified(&dummy_proof(&env), &r1, &l1, &b32(&env, 88));
+    c.pool
+        .register_root_verified(&dummy_proof(&env), &r1, &l1, &b32(&env, 88));
     assert_eq!(c.pool.leaf_count(), 2);
     let ls = c.pool.leaves();
     assert_eq!(ls.len(), 2);
@@ -727,8 +985,10 @@ fn leaf_range_paginates_and_clamps() {
     while k < 3 {
         let leaf = b32(&env, 50 + k);
         let nr = b32(&env, 70 + k);
-        c.pool.deposit(&c.user, &10, &leaf, &dummy_proof(&env), &dummy_proof(&env));
-        c.pool.register_root_verified(&dummy_proof(&env), &cur, &leaf, &nr);
+        c.pool
+            .deposit(&c.user, &10, &leaf, &dummy_proof(&env), &dummy_proof(&env));
+        c.pool
+            .register_root_verified(&dummy_proof(&env), &cur, &leaf, &nr);
         cur = nr;
         k += 1;
     }

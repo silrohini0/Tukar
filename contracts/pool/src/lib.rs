@@ -20,7 +20,9 @@
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype,
     crypto::bn254::{Bn254Fr, Bn254G1Affine, Bn254G2Affine},
-    symbol_short, token::TokenClient, vec, Address, BytesN, Env, IntoVal, Symbol, Vec,
+    symbol_short,
+    token::TokenClient,
+    vec, Address, BytesN, Env, IntoVal, Symbol, Vec,
 };
 
 mod poseidon;
@@ -101,13 +103,13 @@ enum DataKey {
     DenyList,
     CurrentRoot,
     Count,
-    LeafCount,        // number of leaves inserted into the Merkle tree
-    Leaf(u32),        // the commitment at tree leaf index i (durable, ordered)
+    LeafCount,            // number of leaves inserted into the Merkle tree
+    Leaf(u32),            // the commitment at tree leaf index i (durable, ordered)
     Inserted(BytesN<32>), // commitments already inserted as a leaf (insert-once guard)
     Root(BytesN<32>),
     Nullifier(BytesN<32>),
     Commitment(BytesN<32>),
-    FxOracle,         // Reflector SEP-40 oracle address (USD-base FX feed)
+    FxOracle, // Reflector SEP-40 oracle address (USD-base FX feed)
 }
 
 // ---- Reflector SEP-40 oracle interface (the subset the pool calls) ----
@@ -159,7 +161,9 @@ impl Pool {
         s.set(&DataKey::CurrentRoot, &initial_root);
         s.set(&DataKey::Count, &0u32);
         s.set(&DataKey::FxOracle, &fx_oracle);
-        env.storage().persistent().set(&DataKey::Root(initial_root), &());
+        env.storage()
+            .persistent()
+            .set(&DataKey::Root(initial_root), &());
     }
 
     /// Admin-only: update the Reflector FX oracle address (e.g. if the partner
@@ -368,7 +372,11 @@ impl Pool {
             soroban_sdk::panic_with_error!(&env, PoolError::UnknownRoot);
         }
         // The leaf must be a real, backed commitment (see the "Backing" note above).
-        if !env.storage().persistent().has(&DataKey::Commitment(new_leaf.clone())) {
+        if !env
+            .storage()
+            .persistent()
+            .has(&DataKey::Commitment(new_leaf.clone()))
+        {
             soroban_sdk::panic_with_error!(&env, PoolError::UnknownCommitment);
         }
         // Insert-once: a second insertion of the same commitment at a different
@@ -381,7 +389,11 @@ impl Pool {
         env.storage().persistent().set(&ins_key, &());
         // The depth-10 tree holds at most 2^10 leaves; `n` is also the slot we store
         // the leaf at AND the index we pin the proof to (below).
-        let n: u32 = env.storage().instance().get(&DataKey::LeafCount).unwrap_or(0);
+        let n: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::LeafCount)
+            .unwrap_or(0);
         if n >= 1u32 << 10 {
             soroban_sdk::panic_with_error!(&env, PoolError::TreeFull);
         }
@@ -405,13 +417,26 @@ impl Pool {
         // dependency on RPC event retention.
         env.storage().persistent().set(&DataKey::Leaf(n), &new_leaf);
         env.storage().instance().set(&DataKey::LeafCount, &(n + 1));
-        env.storage().persistent().set(&DataKey::Root(new_root.clone()), &());
-        env.storage().instance().set(&DataKey::CurrentRoot, &new_root);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Root(new_root.clone()), &());
+        env.storage()
+            .instance()
+            .set(&DataKey::CurrentRoot, &new_root);
         // Keep this leaf + root readable on a long-lived pool (TTL maintenance).
-        env.storage().persistent().extend_ttl(&DataKey::Leaf(n), TTL_THRESHOLD, TTL_EXTEND);
-        env.storage().persistent().extend_ttl(&ins_key, TTL_THRESHOLD, TTL_EXTEND);
-        env.storage().persistent().extend_ttl(&DataKey::Root(new_root.clone()), TTL_THRESHOLD, TTL_EXTEND);
-        env.events().publish((symbol_short!("root"), new_leaf), new_root);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Leaf(n), TTL_THRESHOLD, TTL_EXTEND);
+        env.storage()
+            .persistent()
+            .extend_ttl(&ins_key, TTL_THRESHOLD, TTL_EXTEND);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Root(new_root.clone()),
+            TTL_THRESHOLD,
+            TTL_EXTEND,
+        );
+        env.events()
+            .publish((symbol_short!("root"), new_leaf), new_root);
     }
 
     /// Compliant deposit: pull `amount` tokens from `from` into the pool and
@@ -435,7 +460,11 @@ impl Pool {
         // leaf (insert-once), permanently locking those tokens. Fail before any
         // token moves. (`transfer`/`withdraw` legitimately re-record outputs and
         // rely on `record_commitment` idempotence, so this guard is deposit-only.)
-        if env.storage().persistent().has(&DataKey::Commitment(commitment.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Commitment(commitment.clone()))
+        {
             soroban_sdk::panic_with_error!(&env, PoolError::DuplicateCommitment);
         }
         from.require_auth();
@@ -473,7 +502,8 @@ impl Pool {
         Self::token(&env).transfer(&from, &env.current_contract_address(), &amount);
 
         let index = Self::record_commitment(&env, &commitment);
-        env.events().publish((symbol_short!("deposit"), index), (commitment, amount));
+        env.events()
+            .publish((symbol_short!("deposit"), index), (commitment, amount));
         index
     }
 
@@ -511,7 +541,14 @@ impl Pool {
             soroban_sdk::panic_with_error!(&env, PoolError::AmountNotBound);
         }
         Self::require_known_root(&env, &root);
-        let pi = Self::transfer_inputs(&env, &root, &public_amount, &ext_data_hash, &nullifiers, &out_commitments);
+        let pi = Self::transfer_inputs(
+            &env,
+            &root,
+            &public_amount,
+            &ext_data_hash,
+            &nullifiers,
+            &out_commitments,
+        );
         Self::verify(&env, DataKey::TransferVerifier, &proof, &pi);
         Self::spend_nullifiers(&env, &nullifiers);
         for c in out_commitments.iter() {
@@ -551,7 +588,14 @@ impl Pool {
         // cannot replay the same proof+nullifiers to a different recipient (the
         // recomputed hash would differ and the proof would fail to verify).
         let ext_data_hash = Self::ext_data_hash(&env, &recipient, &public_amount);
-        let pi = Self::transfer_inputs(&env, &root, &public_amount, &ext_data_hash, &nullifiers, &out_commitments);
+        let pi = Self::transfer_inputs(
+            &env,
+            &root,
+            &public_amount,
+            &ext_data_hash,
+            &nullifiers,
+            &out_commitments,
+        );
         Self::verify(&env, DataKey::TransferVerifier, &proof, &pi);
         // Optional min-receive settlement gate. When the caller asks for off-ramp
         // slippage protection, the pool reads Reflector ON-CHAIN for the live local
@@ -563,8 +607,8 @@ impl Pool {
         // read into FxUnavailable here, so funds never move at an unknown rate.
         if let (Some(sym), Some(min_out)) = (offramp_symbol, min_local_out) {
             let usdc_whole = amount / USDC_STROOPS; // 7-dp SAC -> whole-USDC quote unit
-            // Settlement gate prices at the MEDIAN of recent records, not spot, so a
-            // transient oracle manipulation can't lower the floor and force a bad fill.
+                                                    // Settlement gate prices at the MEDIAN of recent records, not spot, so a
+                                                    // transient oracle manipulation can't lower the floor and force a bad fill.
             let local = Self::quote_local_median(&env, sym, usdc_whole, FX_GATE_RECORDS);
             if local < min_out {
                 soroban_sdk::panic_with_error!(&env, PoolError::SlippageExceeded);
@@ -575,7 +619,8 @@ impl Pool {
             Self::record_commitment(&env, &c);
         }
         Self::token(&env).transfer(&env.current_contract_address(), &recipient, &amount);
-        env.events().publish((symbol_short!("withdraw"), recipient), amount);
+        env.events()
+            .publish((symbol_short!("withdraw"), recipient), amount);
     }
 
     /// Verify a selective-disclosure proof for a regulator. The disclosed
@@ -587,7 +632,11 @@ impl Pool {
         disclosed_amount: BytesN<32>,
         audit_context: BytesN<32>,
     ) -> bool {
-        if !env.storage().persistent().has(&DataKey::Commitment(commitment.clone())) {
+        if !env
+            .storage()
+            .persistent()
+            .has(&DataKey::Commitment(commitment.clone()))
+        {
             soroban_sdk::panic_with_error!(&env, PoolError::UnknownCommitment);
         }
         let pi = vec![
@@ -608,30 +657,45 @@ impl Pool {
         env.storage().persistent().has(&DataKey::Root(root))
     }
     pub fn is_nullifier_used(env: Env, nullifier: BytesN<32>) -> bool {
-        env.storage().persistent().has(&DataKey::Nullifier(nullifier))
+        env.storage()
+            .persistent()
+            .has(&DataKey::Nullifier(nullifier))
     }
     pub fn is_commitment_known(env: Env, commitment: BytesN<32>) -> bool {
-        env.storage().persistent().has(&DataKey::Commitment(commitment))
+        env.storage()
+            .persistent()
+            .has(&DataKey::Commitment(commitment))
     }
     pub fn commitment_count(env: Env) -> u32 {
         env.storage().instance().get(&DataKey::Count).unwrap_or(0)
     }
     /// Number of leaves in the Merkle tree (i.e. registered deposits).
     pub fn leaf_count(env: Env) -> u32 {
-        env.storage().instance().get(&DataKey::LeafCount).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::LeafCount)
+            .unwrap_or(0)
     }
     /// The ordered Merkle-tree leaves (deposited commitments) from durable state.
     /// Lets any client reconstruct the exact tree without relying on event
     /// retention. Bounded by the tree capacity (2^depth).
     pub fn leaves(env: Env) -> Vec<BytesN<32>> {
-        let n: u32 = env.storage().instance().get(&DataKey::LeafCount).unwrap_or(0);
+        let n: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::LeafCount)
+            .unwrap_or(0);
         Self::leaf_range(env, 0, n)
     }
     /// Paginated leaves [start, start+count) — lets clients reconstruct large trees
     /// in bounded chunks (a single full `leaves()` would exceed the read budget at
     /// scale; the tree caps at 2^depth leaves).
     pub fn leaf_range(env: Env, start: u32, count: u32) -> Vec<BytesN<32>> {
-        let n: u32 = env.storage().instance().get(&DataKey::LeafCount).unwrap_or(0);
+        let n: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::LeafCount)
+            .unwrap_or(0);
         let end = core::cmp::min(start.saturating_add(count), n);
         let mut out = vec![&env];
         let mut i = start;
@@ -766,7 +830,9 @@ impl Pool {
             // so a note stays provable indefinitely; if its nullifier were allowed to
             // expire and be archived, `has(&key)` would read false and the same note
             // could be spent again. Extend to match the root/leaf TTL.
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND);
         }
     }
 
@@ -780,7 +846,9 @@ impl Pool {
         // Keep the commitment readable on a long-lived pool, so a deposit that hasn't
         // been registered into the tree yet can't have its backing record archived
         // out from under a later `register_root_verified`.
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND);
         env.storage().instance().set(&DataKey::Count, &(count + 1));
         count
     }

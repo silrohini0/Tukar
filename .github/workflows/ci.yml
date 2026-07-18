@@ -1,15 +1,27 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tukar-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  CARGO_TERM_COLOR: always
 
 jobs:
-  verify:
-    name: Sequential verification
+  dependency-audit:
+    name: Dependency audit
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -18,48 +30,217 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+          cache-dependency-path: package-lock.json
 
       - name: Install root dependencies
         run: npm ci
 
-      - name: Install web dependencies
-        run: npm install --prefix apps/web
+      - name: Audit high severity Node dependencies
+        run: npm audit --audit-level=high
 
-      - name: Lint frontend
+  frontend:
+    name: Frontend lint, types, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Lint Next.js app
         run: npm run lint
 
-      - name: Type check frontend
+      - name: Typecheck Next.js app
         run: npm run typecheck
 
-      - name: Run frontend unit tests
-        run: npm run test:unit
-
-      - name: Run smart contract tests
-        run: npm run test:contracts
-
-      - name: Build frontend
+      - name: Build Next.js app
         run: npm run build
 
-      - name: Build Soroban pool WASM
-        run: stellar contract build --manifest-path contracts/pool/Cargo.toml
-        continue-on-error: true
+  static-demo:
+    name: Static demo browser checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
-      - name: Collect deployment artifacts
-        if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Setup Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Start static server
         run: |
-          mkdir -p artifacts
-          cp deployments/testnet.json artifacts/testnet-deployment.json
-          cp -R contracts/build artifacts/contracts-build || true
-          cp -R apps/web/.next artifacts/web-next || true
+          npm run serve > /tmp/tukar-static.log 2>&1 &
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:8000/ >/dev/null; do sleep 1; done'
 
-      - name: Upload artifacts
+      - name: Run landing QA
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run test:landing -- http://127.0.0.1:8000
+
+      - name: Run routed page QA
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run test:pages -- http://127.0.0.1:8000
+
+      - name: Upload static server log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tukar-artifacts
+          name: static-server-log
+          path: /tmp/tukar-static.log
+
+  zk-proofs:
+    name: ZK proof checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Verify browser proving artifacts
+        run: npm run test:proving
+
+      - name: Verify negative proof cases
+        run: npm run test:negative
+
+  contracts:
+    name: Soroban contract checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/pool
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path contracts/pool/Cargo.toml -- --check
+
+      - name: Test Soroban contract
+        run: cargo test --manifest-path contracts/pool/Cargo.toml
+
+      - name: Build contract release artifact
+        run: cargo build --manifest-path contracts/pool/Cargo.toml --release
+
+  package-artifacts:
+    name: Package release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - dependency-audit
+      - frontend
+      - static-demo
+      - zk-proofs
+      - contracts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp -R docs artifacts/docs
+          cp -R deployments artifacts/deployments
+          cp -R frontend artifacts/static-frontend
+          cp -R circuits/build artifacts/verification-keys
+          find artifacts/verification-keys -type f ! -name '*_vk.json' ! -name 'verification_key.json' ! -name 'pool_deny_list.json' -delete
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: tukar-release-bundle
           path: artifacts
+
+  deploy-testnet:
+    name: Testnet CD gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: package-artifacts
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: testnet
+    env:
+      SOURCE_ACCOUNT: ${{ secrets.STELLAR_SOURCE_ACCOUNT }}
+      STELLAR_SECRET_KEY: ${{ secrets.STELLAR_SECRET_KEY }}
+      TOKEN_ADDRESS: ${{ secrets.STELLAR_TOKEN_ADDRESS }}
+      FX_ORACLE: ${{ secrets.STELLAR_FX_ORACLE }}
+      INITIAL_ROOT: ${{ secrets.STELLAR_INITIAL_ROOT }}
+      ASP_ROOT: ${{ secrets.STELLAR_ASP_ROOT }}
+      DENY_LIST_JSON: ${{ secrets.STELLAR_DENY_LIST_JSON }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check deploy configuration
+        id: deploy_config
+        run: |
+          if [ -n "$SOURCE_ACCOUNT" ] && [ -n "$STELLAR_SECRET_KEY" ] && [ -n "$TOKEN_ADDRESS" ] && [ -n "$FX_ORACLE" ] && [ -n "$INITIAL_ROOT" ] && [ -n "$ASP_ROOT" ] && [ -n "$DENY_LIST_JSON" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping testnet deploy because one or more STELLAR_* secrets are not configured."
+          fi
+
+      - name: Setup Rust
+        if: steps.deploy_config.outputs.ready == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Stellar CLI
+        if: steps.deploy_config.outputs.ready == 'true'
+        run: cargo install --locked stellar-cli --version 27.0.0
+
+      - name: Import deployer identity
+        if: steps.deploy_config.outputs.ready == 'true'
+        run: printf '%s\n' "$STELLAR_SECRET_KEY" | stellar keys add "$SOURCE_ACCOUNT" --secret-key --overwrite
+
+      - name: Deploy to Stellar testnet
+        if: steps.deploy_config.outputs.ready == 'true'
+        run: scripts/deploy-testnet.sh
