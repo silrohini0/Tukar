@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 520" font-family="Archivo, Segoe UI, system-ui, sans-serif">
+  <rect width="980" height="520" rx="18" fill="#0a0705"/>
+  <rect width="980" height="520" rx="18" fill="url(#beam)"/>
+  <defs>
+    <linearGradient id="beam" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a1a" stop-opacity="0.10"/>
+      <stop offset="0.5" stop-color="#ff7a1a" stop-opacity="0"/>
+    </linearGradient>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ff8a3d"/></marker>
+    <marker id="arg" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#37d67a"/></marker>
+    <marker id="arm" markerWidth="8" markerHeight="8" refX="5" refY="3" orient="auto"><path d="M0,0 L5,3 L0,6 Z" fill="#6b645e"/></marker>
+  </defs>
+
+  <!-- logo + title -->
+  <g transform="translate(32,28)">
+    <path d="M28 16 22 5.6 10 5.6 4 16 10 26.4 22 26.4Z" fill="none" stroke="#ff8a3d" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M1 16H12M20 16H31" stroke="#ffb070" stroke-width="2" stroke-linecap="round"/>
+    <path d="M16 11 21 16 16 21 11 16Z" fill="#ff7a1a"/><path d="M16 13.2 18.8 16 16 18.8 13.2 16Z" fill="#0a0705"/>
+  </g>
+  <text x="74" y="42" fill="#f5f1ec" font-size="21" font-weight="800" letter-spacing="-0.3">Tukar — confidential cross-border corridor on Stellar</text>
+  <text x="74" y="64" fill="#8a847e" font-size="13">Private in the middle, accountable at the edges. ZK proofs generated in-browser, verified on-chain.</text>
+
+  <!-- ===== corridor flow ===== -->
+  <text x="32" y="104" fill="#ff7a1a" font-size="11" font-family="JetBrains Mono, monospace" letter-spacing="2">THE CORRIDOR</text>
+
+  <!-- Sender -->
+  <rect x="32" y="116" width="212" height="96" rx="14" fill="#13100c" stroke="#241d16"/>
+  <rect x="48" y="134" width="26" height="18" rx="5" fill="none" stroke="rgba(255,122,26,0.5)"/><text x="53" y="147" fill="#ff9c52" font-size="10" font-family="JetBrains Mono, monospace">US</text>
+  <text x="84" y="147" fill="#f5f1ec" font-size="14" font-weight="700">Country A · Sender</text>
+  <text x="48" y="173" fill="#8a847e" font-size="12">fiat on-ramp → real USDC</text>
+  <text x="48" y="193" fill="#ff9c52" font-size="12">+ compliance proof (ASP member)</text>
+
+  <line x1="244" y1="164" x2="384" y2="164" stroke="#ff8a3d" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="270" y="156" fill="#ff8a3d" font-size="11" font-family="JetBrains Mono, monospace">USDC</text>
+
+  <!-- Corridor -->
+  <rect x="384" y="108" width="252" height="112" rx="14" fill="#13100c" stroke="rgba(255,122,26,0.55)"/>
+  <text x="402" y="136" fill="#f5f1ec" font-size="14" font-weight="700">🔒 Shielded corridor</text>
+  <text x="402" y="160" fill="#8a847e" font-size="12">Soroban pool · transfer amounts + parties</text>
+  <text x="402" y="178" fill="#ffb070" font-size="12">hidden on-chain (edges public)</text>
+  <text x="402" y="200" fill="#8a847e" font-size="12">public: commitments · nullifiers</text>
+
+  <line x1="636" y1="164" x2="776" y2="164" stroke="#37d67a" stroke-width="2" marker-end="url(#arg)"/>
+  <text x="662" y="156" fill="#37d67a" font-size="11" font-family="JetBrains Mono, monospace">USDC</text>
+
+  <!-- Receiver -->
+  <rect x="776" y="116" width="172" height="96" rx="14" fill="#13100c" stroke="#241d16"/>
+  <rect x="792" y="134" width="28" height="18" rx="5" fill="none" stroke="rgba(55,214,122,0.5)"/><text x="797" y="147" fill="#5fe3a0" font-size="10" font-family="JetBrains Mono, monospace">MX</text>
+  <text x="830" y="147" fill="#f5f1ec" font-size="14" font-weight="700">Receiver</text>
+  <text x="792" y="173" fill="#8a847e" font-size="12">USDC → fiat off-ramp</text>
+  <text x="792" y="193" fill="#8a847e" font-size="12">+ value-bound withdraw</text>
+
+  <!-- Regulator -->
+  <line x1="510" y1="220" x2="510" y2="250" stroke="#37d67a" stroke-width="2" marker-end="url(#arg)"/>
+  <rect x="372" y="250" width="276" height="58" rx="12" fill="#0f140f" stroke="rgba(55,214,122,0.5)"/>
+  <text x="390" y="277" fill="#f5f1ec" font-size="13" font-weight="700">⚖️ Regulator · selective disclosure</text>
+  <text x="390" y="296" fill="#5fe3a0" font-size="11">learns exactly one fact — verified on-chain, nothing else</text>
+
+  <!-- ===== on-chain layer ===== -->
+  <line x1="32" y1="340" x2="948" y2="340" stroke="#241d16" stroke-width="1"/>
+  <text x="32" y="368" fill="#ff7a1a" font-size="11" font-family="JetBrains Mono, monospace" letter-spacing="2">ON STELLAR · 5 CONTRACTS LIVE (BN254 GROTH16)</text>
+
+  <!-- Pool -->
+  <rect x="32" y="384" width="916" height="62" rx="14" fill="#13100c" stroke="rgba(255,122,26,0.55)"/>
+  <text x="50" y="412" fill="#ff9c52" font-size="14" font-weight="800">POOL</text>
+  <text x="110" y="412" fill="#cfc8c1" font-size="12.5">real USDC custody · global Merkle accumulator (durable, paginated) · binds every public input · nullifier + commitment sets · pinned ASP</text>
+  <text x="110" y="432" fill="#6b645e" font-size="11" font-family="JetBrains Mono, monospace">builds verifier inputs from typed signals → no double-spend bypass · no admin root backdoor</text>
+
+  <!-- verifier pills -->
+  <g font-family="JetBrains Mono, monospace" font-size="11">
+    <line x1="140" y1="446" x2="140" y2="470" stroke="#6b645e" stroke-width="1.3" marker-end="url(#arm)"/>
+    <line x1="330" y1="446" x2="330" y2="470" stroke="#6b645e" stroke-width="1.3" marker-end="url(#arm)"/>
+    <line x1="520" y1="446" x2="520" y2="470" stroke="#6b645e" stroke-width="1.3" marker-end="url(#arm)"/>
+    <line x1="710" y1="446" x2="710" y2="470" stroke="#6b645e" stroke-width="1.3" marker-end="url(#arm)"/>
+    <line x1="868" y1="446" x2="868" y2="470" stroke="#6b645e" stroke-width="1.3" marker-end="url(#arm)"/>
+    <g fill="#0f0b07" stroke="#2a221a">
+      <rect x="78" y="472" width="124" height="30" rx="9"/>
+      <rect x="268" y="472" width="124" height="30" rx="9"/>
+      <rect x="458" y="472" width="124" height="30" rx="9"/>
+      <rect x="648" y="472" width="124" height="30" rx="9"/>
+      <rect x="806" y="472" width="124" height="30" rx="9"/>
+    </g>
+    <g fill="#cfc8c1">
+      <text x="96" y="491">transfer vfr</text>
+      <text x="282" y="491">compliance vfr</text>
+      <text x="476" y="491">disclosure vfr</text>
+      <text x="660" y="491">merkleUpdate</text>
+      <text x="836" y="491" fill="#5fe3a0">USDC SAC</text>
+    </g>
+  </g>
+</svg>
