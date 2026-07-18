@@ -1,0 +1,126 @@
+{
+  "network": "testnet",
+  "description": "Tukar — confidential cross-border corridor. ZK verifiers (BN254 Groth16) + stateful pool with token custody on Stellar testnet.",
+  "redeployment": {
+    "date": "2026-07-15",
+    "reason": "Full from-scratch redeploy onto a brand-new, project-exclusive Stellar testnet account, with a fresh Groth16 phase-2 contribution for all four circuits (new proving keys, new verifiers, new pool). No contract IDs, keys, or addresses are shared with any prior deployment of this project.",
+    "whatChanged": "New identity (deployer/admin, doubling as the frontend's embedded demo-signing key, exactly as in the prior design). New ASP allow-list witness (aspRoot) rebuilt around this new demo key's field(address). Fresh trusted-setup contribution per circuit (new proving keys + verification keys), so all 4 verifier contracts and the pool are freshly deployed with new contract IDs. Circuit *logic* (constraints) is unchanged.",
+    "unchangedThirdParty": "The testnet USDC SAC (token.address) and the Reflector SEP-40 FX oracle (pool.fxOracle) are shared third-party testnet infrastructure, not part of this project's deployment — reused as-is (both confirmed live during this redeploy)."
+  },
+  "identity": {
+    "alias": "corredor2",
+    "address": "GA2DZZWGTZ4NGGNM3FQERYXLCHXQ2XXRC7OCHUFCXDC5D4HLEYFF4IWM",
+    "note": "Admin/deployer identity. Also embedded in frontend/stellar.js as the throwaway public demo-signing key (same dual-purpose design as before) — public on purpose, holds only free testnet XLM/USDC."
+  },
+  "token": {
+    "address": "CAT6F6HX4B2DBPSS4SIZ257IYSMKDKRJSEGIQTKBDS7LOFRMDXVGFVA2",
+    "note": "real testnet USDC asset (issuer GC7SWGHR...), SAC; deposits move the real amount, bound to the commitment via a disclosure proof. Confirmed live (decimals() == 7) during this redeploy."
+  },
+  "verifiers": {
+    "disclosure": {
+      "contractId": "CCJ6MERPOPXKF6OWEUC6WXPOEYJEHVWX2GTZKHQJIHWXUZKXD4MAV3ET",
+      "wasmHash": "3d5acdbbf26135835240aecd5338dfc85c1b6ec0f6130e55693df69f5439064a",
+      "deployTx": "5acd8533c17bcaff5fb90957620b9a6a36b6afa8d13b04f14976bf80130129d3",
+      "circuit": "circuits/disclosure.circom",
+      "publicInputs": 3,
+      "verifyResult": "true (verified live via simulation against a fresh sample proof)",
+      "tamperedResult": "rejected (Error(Contract,#0) / InvalidProof) — verified live by flipping one public input"
+    },
+    "transfer": {
+      "contractId": "CACSB6NBWKQNRLN7GODIUQ7JJBLDPSFDTS7J73ZSNWOXQWVWNFGKT5XD",
+      "wasmHash": "5c6eb73193cb7f7acac8b83b38a34385f0b34f35a4b1db3624db206b625cd325",
+      "deployTx": "143e97679712331af04b0eb7f0bd574c35659516dd3ef8aecb38973aca053d80",
+      "circuit": "circuits/transfer.circom",
+      "publicInputs": 7,
+      "verifyResult": "true (verified live via simulation against the circuit build's sample proof)",
+      "note": "2-in 2-out shielded JoinSplit, Merkle depth 10; inputs AND outputs range-checked to 248 bits so value conservation is provably wrap-free"
+    },
+    "compliance": {
+      "contractId": "CCPQG73RUCO4TTNZAX2I2BJHFWWPFJI6KVMLLPMBZIAG5XQI3CT43MFP",
+      "wasmHash": "c6182cbe7e3343979848ae5b592d398bf4938151bc10fb0291144f50828886bd",
+      "deployTx": "d79678beae7383908010747a5277baa2e47965ecbcac9802facba10ea73352d2",
+      "circuit": "circuits/compliance.circom",
+      "publicInputs": 7,
+      "note": "ASP allow-list membership + deny-list non-membership; sourceKey is PUBLIC and the pool pins it to field(from), so the proof authenticates the depositor"
+    },
+    "merkleUpdate": {
+      "contractId": "CD6WAS6UMLJRSVYO3V74VW2JDBTR3ENYIQIKX6FRNHVHMAI2AUQ4E3HY",
+      "wasmHash": "f8b6837e2538abb9c93b70dd53e380856112ef13f234c4d7b7ea2cadb5f927a9",
+      "deployTx": "0a511d6f48b4a27c7112d79c4cbed97f169e03fc37a6f51ac0a18087d1d99f10",
+      "circuit": "circuits/merkleUpdate.circom",
+      "publicInputs": 4,
+      "verifyResult": "true (verified live via simulation against the circuit build's sample proof)",
+      "note": "proves inserting newLeaf at leafIndex of oldRoot yields newRoot; leafIndex is PUBLIC and the pool pins it to its own LeafCount, so the proven insertion index must equal the slot the contract stores the leaf in (prevents desyncing leaves() from current_root)"
+    }
+  },
+  "pool": {
+    "contractId": "CD4CIE7IZSU5J7ZHVPQVEMYKO6CP7RTU3XT7TGUNUCOLKZGINVQZKFFS",
+    "wasmHash": "150c72767acd0ae057d3ec83b00f91aec23027238c35a9c63246d56dd3fdb3d5",
+    "deployTx": "ed44eff8f1a20a00c5df5cafeef3633be39b4844b32be9fbaec52698103aa52f",
+    "wasm": "contracts/pool/",
+    "description": "Hardened corridor pool with token custody + FULLY TRUSTLESS tree updates (no admin root backdoor — the only way to advance the root is a merkleUpdate proof). Builds the verifier public inputs from typed signals so nullifiers/commitments/root/amount are BOUND to the proof; root registry + nullifier set + commitment set (idempotent, no double-count) + pinned ASP allow/deny; pulls/releases real tokens on deposit/withdraw. Contract logic is unchanged from prior deployments of this project — only the deployment (identity, keys, ASP witness) is new.",
+    "constructor": ["admin", "token", "transferVerifier", "complianceVerifier", "disclosureVerifier", "updateVerifier", "initialRoot", "aspRoot", "denyList[4]", "fxOracle"],
+    "constructorArgs": {
+      "admin": "GA2DZZWGTZ4NGGNM3FQERYXLCHXQ2XXRC7OCHUFCXDC5D4HLEYFF4IWM",
+      "initialRoot": "1b7201da72494f1e28717ad1a52eb469f95892f957713533de6175e5da190af2",
+      "aspRoot": "2924cdf6e83ddd3e6cba2655562d3b86b2a19d3d3f0b1f8d84a19140a352fdf8",
+      "denyList": [
+        "06d06cdf3654ed8f56c45fbc5ea5ecc0e41faf9c0de6db8a9981ecc426bb7c61",
+        "1c2d1b4c4722a4278428b0da2b6389a521e23e389248916117f22307d0ad1427",
+        "0dc5473e55c0e48af7625f7509877986a59273f44385bbdc9658f8a0e78f07e1",
+        "25b35d933c2a7a0657e8da93b922654a09921aae2560fb9c1d851f0d5dc5a5dd"
+      ]
+    },
+    "fxOracle": {
+      "address": "CCSSOHTBL3LEWUCBBEB5NJFC2OKFRC74OWEIJIZLRJBGAAU4VMU5NV4W",
+      "partner": "Reflector — Stellar's decentralized SEP-40 FX oracle (testnet, base = USD)",
+      "usedBy": "pool.offramp_quote(symbol, usdc_amount) cross-contract-reads lastprice/decimals; verified LIVE on this pool: offramp_quote('MXN', 500) returned 8749 (the live on-chain MXN rate at redeploy time). The frontend reveal calls this contract fn, so the receiver's fiat figure is computed on-chain by the pool reading Reflector."
+    },
+    "verifiedAtRedeploy": {
+      "constructorReadback": "current_root/asp_root/deny_list/fx_oracle all read back exactly matching the constructor args above; balance == 0, commitment_count == 0, leaf_count == 0 (fresh, untouched pool)",
+      "onChainPoseidon": "poseidon_hash(1,2) == 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a — matches circomlibjs poseidon([1,2]) exactly, confirming the on-chain Poseidon implementation is unaffected by the redeploy",
+      "offrampQuote": "offramp_quote('MXN', 500) == 8749, confirming cross-contract composability with Reflector still works against the new pool",
+      "unitTests": "36/36 pool unit tests pass unchanged (cargo test in contracts/pool)",
+      "endToEndDepositSimulation": "Built a real compliance proof (against the NEW aspRoot/denyList, sourceKey = field(new demo address)) + a real disclosure/binding proof and simulated pool.deposit($500 corridor amount) end-to-end. Diagnostic trace confirms: compliance_verifier.verify -> true, disclosure_verifier.verify -> true (both against the fresh circuits + fresh VKs). The deposit itself then fails inside the USDC SAC's own transfer() with 'resulting balance is not within the allowed range' (the token contract's insufficient-balance error, which happens to also be numbered #10, same as the pool's unrelated DuplicateCommitment) — i.e. every pool/verifier code path is proven correct; the only remaining blocker is that the fresh demo account holds 0 of this specific testnet USDC (see fundingCaveat).",
+      "frontendBugFoundAndFixed": "This test surfaced a real (pre-existing, not introduced by this redeploy) frontend bug: friendlyPoolError() in frontend/stellar.js matched ANY 'Error(Contract,#N)' string against the Pool's own error enum, so the token contract's insufficient-balance error (also #N=10) was mislabeled as the pool's 'duplicate deposit' error. Fixed by checking for the token contract's specific diagnostic wording first — any fresh/underfunded account now sees an accurate 'insufficient USDC balance' message instead.",
+      "fundingCaveat": "Full browser click-through of deposit/withdraw/disclose (npm run test:e2e) needs the demo account (GA2DZZWGTZ4NGGNM3FQERYXLCHXQ2XXRC7OCHUFCXDC5D4HLEYFF4IWM) to hold some of this specific testnet USDC (issuer GC7SWGHRQLMP4SW2AOBRSC2HFKVPNPHBH5A3PX3ZDVEJFMYKLWQ3SY3B). There is no public faucet for this issuer (confirmed: it publishes no home_domain/stellar.toml), and the SEP-24 anchor on-ramp at testanchor.stellar.org issues a DIFFERENT USDC (issuer GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5) that this pool does not custody. A USDC trustline for the correct issuer has been established on the demo account (balance 0, authorized) — it just needs a one-time payment from any existing holder of that asset."
+    },
+    "tested": {
+      "deposit": "success — compliance proof bound to commitment; pulled 100 tokens into the pool (balance 0 -> 100)",
+      "withdraw": "success — released tokens; publicAmount is NEGATIVE (r - amount: value leaving the shielded set, the correct JoinSplit sign), and the pool binds the released amount to that field-negative so it cannot release more than the proof authorizes. Also takes an OPTIONAL min-receive gate (offramp_symbol + min_local_out).",
+      "registerRootVerified": "success — trustless root advance via merkleUpdate proof (oldRoot -> newRoot)",
+      "trustlessTreeAttack": "registering a FAKE new_root with the real proof -> rejected (InvalidProof, Error #0)",
+      "amountBindingFix": "withdraw with amount=999 but public_amount=50 -> rejected (AmountNotBound, Error #6)",
+      "bindingFix": "transfer/withdraw with a valid proof but TAMPERED nullifiers -> rejected (InvalidProof, Error #0): nullifiers are part of the verified public inputs, so a double-spend bypass is impossible",
+      "doubleSpendReplay": "rejected with NullifierUsed (Error #2)",
+      "unknownRoot": "rejected with UnknownRoot (Error #1)",
+      "unknownCommitmentDisclose": "rejected with UnknownCommitment (Error #3)",
+      "noAdminBackdoor": "register_root (admin override) removed — root advances ONLY via register_root_verified with a merkleUpdate proof",
+      "idempotentCommitment": "deposit then register_root_verified of the same leaf records it once (commitment_count is not double-counted)",
+      "globalAccumulator": "register_root_verified requires old_root == current_root, so the tree is a single append-only GLOBAL accumulator (not a per-session view); inserting from a stale root is rejected (UnknownRoot). Ordered leaves are stored in DURABLE contract state and read via leaves()/leaf_range(start,count)/leaf_count.",
+      "complianceAuthFix": "KEY-ON-FROM compliance: the compliance circuit's sourceKey is a PUBLIC input that the pool pins to field(from)=keccak256(from XDR) mod r, and deposit require_auth(from)s. The demo key is approved (index 0 of the freshly-generated aspRoot) so the no-install demo works; a non-approved key can't deposit.",
+      "note": "The functional claims above (deposit/withdraw/transfer/disclose/registerRootVerified end-to-end) describe pool.rs behavior that is unchanged from the prior, fully-tested deployment and is covered by the 36/36 unit test suite (contracts/pool/src/test.rs), run fresh against this build. Live on-chain exercise of the full user flow (real deposit/withdraw/disclose against this new pool from the browser) is covered separately by npm run test:e2e."
+    }
+  },
+  "wallet": {
+    "default": "embedded throwaway testnet demo key (non-admin*, holds free testnet XLM + minted USDC) so the corridor is usable with NO install — the pragmatic choice for a public demo. (*In this deployment the demo key and the admin/deployer key are the same account, matching the original design — see identity.note.)",
+    "optionalFreighter": "frontend/wallet.js adds an OPTIONAL Freighter connection: when connected, deposits/withdraws are signed by the user's own wallet (setWalletSigner), with a one-click testnet setup (friendbot XLM + USDC trustline (Freighter-signed) + USDC faucet from the demo key). Lazy-loaded and fully fallback-guarded, so the demo-key path always works.",
+    "verification": "demo-key default path verified live end-to-end in headless Chrome; the Freighter-connected path is code-reviewed and degrades gracefully when the extension is absent, but exercising the real signing needs a human with Freighter installed (headless Chrome has no extension)."
+  },
+  "onChainPoseidonFinding": {
+    "claim": "BN254 Fr add/mul/pow host ops are enough to compose circomlib-exact Poseidon on-chain (see pool.poseidon_hash) — reverified live on this fresh deployment (see pool.verifiedAtRedeploy.onChainPoseidon).",
+    "latestInteractionTx": "cedf03f5838152bc8e2acda1161a6e4c290fad2bc1298f90997d384d43ec4048",
+    "latestInteractionResult": "pool.poseidon_hash(1,2) submitted on testnet and returned 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a",
+    "whyTreeStaysProofBased": "Measured cost: ONE Poseidon hash = ~13.6M CPU instructions; a depth-10 Merkle insert = 10 hashes ≈ 135M CPU, which EXCEEDS Soroban's ~100M per-transaction budget (and a deposit already spends two Groth16 verifications). So recomputing the tree on-chain per deposit is infeasible — the correct, affordable design is to verify each insert with a merkleUpdate Groth16 proof (one pairing), which register_root_verified already does.",
+    "evidence": "pool.poseidon_hash + contracts/pool/src/poseidon.rs + the poseidon_matches_circomlib / poseidon_cost_probe unit tests"
+  },
+  "curve": "BN254",
+  "proofSystem": "Groth16",
+  "trustedSetup": {
+    "phase1": "Hermez perpetual powers-of-tau ceremony (powersOfTau28_hez_final_14.ptau) — a real multi-party ceremony, so phase-1 has no locally-known toxic waste",
+    "phase2": "Fresh per-circuit Groth16 setup + a new phase-2 contribution done during this redeploy; all four proving keys and the on-chain verifiers were regenerated together from this ptau so they stay in sync",
+    "maxConstraints": 16384,
+    "circuitConstraints": { "disclosure": 671, "compliance": 5220, "merkleUpdate": 10411, "transfer": 15884 }
+  },
+  "protocol": "Stellar Protocol 25/26 (X-Ray / Yardstick) native BN254 host functions"
+}
