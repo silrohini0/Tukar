@@ -1,0 +1,50 @@
+{
+  "name": "tukar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Confidential cross-border payment corridors on Stellar",
+  "scripts": {
+    "circuit:disclosure": "bash scripts/build-disclosure.sh",
+    "circuit:transfer": "bash scripts/build-circuit.sh transfer 14 scripts/gen-input-transfer.mjs",
+    "circuit:compliance": "bash scripts/build-circuit.sh compliance 14 scripts/gen-input-compliance.mjs",
+    "circuit:merkleupdate": "bash scripts/build-circuit.sh merkleUpdate 14 scripts/gen-input-merkleupdate.mjs",
+    "circuit:all": "bash scripts/build-all-circuits.sh",
+    "test:unit": "node scripts/test-unit.mjs",
+    "test:contracts": "cargo test --manifest-path contracts/pool/Cargo.toml",
+    "test:frontend": "node scripts/test-unit.mjs && node scripts/test-pages.mjs",
+    "lint": "npm --prefix apps/web run lint",
+    "typecheck": "npm --prefix apps/web run typecheck",
+    "build": "npm --prefix apps/web run build",
+    "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run test:contracts && npm run build",
+    "test:proving": "node scripts/test-fullprove.mjs",
+    "test:negative": "node scripts/test-negative.mjs",
+    "test:e2e": "node scripts/e2e-playwright.mjs",
+    "demo:feebump": "node scripts/feebump-paymaster.mjs",
+    "sep:anchor": "node scripts/sep-anchor.mjs",
+    "test:anchor": "node scripts/test-anchor.mjs",
+    "record:demo": "node scripts/record-demo.mjs http://localhost:8000 tukar-demo.webm",
+    "video:vo": "python scripts/make-vo.py",
+    "video:record": "node scripts/record-narrated.mjs",
+    "video:mux": "python scripts/mux-video.py",
+    "video:tight": "python scripts/tight-cut.py",
+    "video": "python scripts/make-vo.py && node scripts/record-narrated.mjs && python scripts/mux-video.py && python scripts/tight-cut.py",
+    "test:qr": "node scripts/scan-qr.mjs",
+    "test:bearer": "node scripts/test-bearer.mjs",
+    "test:landing": "node scripts/landing-check.mjs",
+    "test:pages": "node scripts/test-pages.mjs",
+    "test:offramp": "node scripts/test-offramp.mjs",
+    "serve": "node frontend/serve.mjs"
+  },
+  "devDependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "js-sha3": "^0.9.3",
+    "playwright-core": "^1.61.1",
+    "puppeteer-core": "^25.1.0",
+    "snarkjs": "^0.7.5"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^14.6.1"
+  }
+}

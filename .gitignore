@@ -1,0 +1,60 @@
+# Reference repo (cloned for study only, not part of this project's source)
+_reference/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/node_modules/
+apps/web/.next/
+apps/web/tsconfig.tsbuildinfo
+
+# Circom / snarkjs build artifacts
+circuits/build/*
+contracts/build/
+*.r1cs
+*.wasm
+*.zkey
+*.wtns
+!circuits/**/*.circom
+# Commit the canonical verification keys (the deployed verifiers match these).
+# Proving keys (.zkey) are large + regenerable, so they stay ignored.
+!circuits/build/verification_key.json
+!circuits/build/transfer_vk.json
+!circuits/build/compliance_vk.json
+!circuits/build/merkleUpdate_vk.json
+!circuits/build/pool_deny_list.json
+# but DO ship the demo's circuit artifacts (needed to serve the frontend)
+!frontend/circuit/
+!frontend/circuit/*.wasm
+!frontend/circuit/*.zkey
+!frontend/circuit/*.json
+
+# Powers of Tau (large)
+*.ptau
+
+# Rust / Soroban
+target/
+**/target/
+**/test_snapshots/
+
+# Stellar keys / secrets
+.env
+*.secret
+deployments/**/*.secret.json
+
+# Downloaded tool binaries (circom.exe, stellar.exe) — not part of source
+tools/bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# headless screenshots
+_shot*.png
+shot.png
+
+*.webm
+*.mp4
+
+# demo video build artifacts (media — regenerate with npm run video)
+build-video/
