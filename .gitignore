@@ -6,6 +6,7 @@ node_modules/
 frontend/dist/
 frontend/node_modules/
 apps/web/.next/
+apps/web/out/
 apps/web/tsconfig.tsbuildinfo
 apps/web/.vercel/
 
