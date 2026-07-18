@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verify:
+    name: Sequential verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install web dependencies
+        run: npm install --prefix apps/web
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Type check frontend
+        run: npm run typecheck
+
+      - name: Run frontend unit tests
+        run: npm run test:unit
+
+      - name: Run smart contract tests
+        run: npm run test:contracts
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Soroban pool WASM
+        run: stellar contract build --manifest-path contracts/pool/Cargo.toml
+        continue-on-error: true
+
+      - name: Collect deployment artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          cp deployments/testnet.json artifacts/testnet-deployment.json
+          cp -R contracts/build artifacts/contracts-build || true
+          cp -R apps/web/.next artifacts/web-next || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tukar-artifacts
+          path: artifacts
