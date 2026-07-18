@@ -372,7 +372,14 @@ Generating static pages (5/5)
 
 More testing details are in [`docs/TESTING.md`](docs/TESTING.md).
 
+## Screenshots
+
+<img width="344" height="745" alt="Screenshot 2026-07-18 at 11 24 33 PM" src="https://github.com/user-attachments/assets/d87ccc5a-d689-4534-8326-76f43c59507e" />
+
 ## CI/CD Pipeline
+
+<img width="1456" height="834" alt="Screenshot 2026-07-18 at 11 23 22 PM" src="https://github.com/user-attachments/assets/b3feb8ba-2206-4562-9370-0fa13d2f4357" />
+
 
 GitHub Actions workflow:
 
