@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Resolve all relative asset URLs from the site root so deep step routes
+       (/demo/send, /demo/audit, …) load app.js / styles.css / circuit/* correctly. -->
+  <base href="/" />
+  <!-- Set the active corridor step from the URL BEFORE first paint, so the correct
+       single panel shows immediately on any route (literal step-page loads included)
+       — no flash of all four, no flash-through-Sender on a deep load. -->
+  <script>
+    (function () {
+      var m = (location.pathname.match(/\/demo\/(send|corridor|receive|audit)/) || [])[1];
+      var s = { send: 0, corridor: 1, receive: 2, audit: 3 }[m];
+      document.documentElement.setAttribute("data-step", s == null ? 0 : s);
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tukar — Corridor Console (live demo)</title>
+  <meta name="description" content="Run the Tukar corridor live on Stellar testnet: deposit real USDC with a zero-knowledge compliance proof, off-ramp to fiat, and audit with a selective-disclosure proof verified on-chain. No install, no wallet." />
+  <meta name="theme-color" content="#0a0705" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Tukar — live corridor console" />
+  <meta property="og:description" content="Deposit real testnet USDC with a ZK compliance proof, off-ramp to fiat, audit with selective disclosure — all verified on-chain on Stellar." />
+  <meta property="og:image" content="/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="/og-image.png" />
+  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'&gt;&lt;path d='M16 11 21 16 16 21 11 16Z' fill='%23ff7a1a'/&gt;&lt;/svg&gt;" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://esm.sh" crossorigin />
+  <link rel="dns-prefetch" href="https://soroban-testnet.stellar.org" />
+  <!-- Start fetching the heavy prover/SDK modules + the vkey in parallel, up front,
+       so each literal step-page load reaches "Ready" as fast as possible. -->
+  <link rel="modulepreload" href="https://esm.sh/circomlibjs@0.1.7" crossorigin />
+  <link rel="modulepreload" href="https://esm.sh/snarkjs@0.7.5" crossorigin />
+  <link rel="modulepreload" href="https://esm.sh/@stellar/stellar-sdk@14.6.1" crossorigin />
+  <link rel="preload" href="/circuit/verification_key.json" as="fetch" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css?v=5" />
+</head>
+<body>
+
+  <!-- ===== TOP BAR ===== -->
+  <header class="bar">
+    <div class="wrap bar-in">
+      <a href="/" class="logo" title="Tukar home">
+        <svg width="30" height="30" viewBox="0 0 32 32" fill="none"><path d="M28 16 22 5.6 10 5.6 4 16 10 26.4 22 26.4Z" stroke="#ff8a3d" stroke-width="2" stroke-linejoin="round"/><path d="M1 16H12M20 16H31" stroke="#ffb070" stroke-width="2" stroke-linecap="round"/><path d="M16 11 21 16 16 21 11 16Z" fill="#ff7a1a"/><path d="M16 13.2 18.8 16 16 18.8 13.2 16Z" fill="#0a0705"/></svg>
+        <span class="word">tukar</span>
+        <span class="tag">CORRIDOR CONSOLE</span>
+      </a>
+      <div class="grow"></div>
+      <div class="live"><span class="dot"></span> Live on Stellar testnet</div>
+      <span id="walletTag" class="wallet-tag"></span>
+      <button id="walletBtn" class="btn-ghost">Connect wallet</button>
+      <button id="demoKeyBtn" class="btn-ghost">Use testnet key</button>
+      <button id="resetBtn" class="btn-ghost">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#cfc8c1" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 0 0 6 6L4 8"/><path d="M4 4V8H8"/><path d="M4 13A8 8 0 0 0 18 18L20 16"/><path d="M20 20V16H16"/></svg>
+        Reset
+      </button>
+    </div>
+  </header>
+
+  <div class="wrap console">
+
+    <!-- ===== INTRO ===== -->
+    <div class="intro">
+      <div>
+        <div class="eyebrow">Try the live corridor</div>
+        <h1>USDC in. Private crossing.<br>Local fiat out.</h1>
+      </div>
+      <p>Generate a real zero-knowledge proof in your browser. The in-corridor transfer hides amounts and counterparties — only commitments are public; deposits and withdrawals are public at the edges by design. Selective disclosure is verified by a live Stellar contract.</p>
+    </div>
+
+    <!-- status line -->
+    <div id="status" class="statusbar" role="status" aria-live="polite" aria-atomic="true">Initializing zero-knowledge prover…</div>
+
+    <!-- ===== FLOW STRIP ===== -->
+    <div class="flow">
+      <div class="flow-node" id="fn0">
+        <div class="flow-tile"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20H20"/><path d="M12 20V14.5"/><path d="M9 12 12 9 15 12 12 15Z"/><path d="M12 9V4.5"/><path d="M9.6 6.4 12 4 14.4 6.4"/></svg></div>
+        <div class="flow-cap">SENDER</div>
+      </div>
+      <div class="flow-track"><i></i></div>
+      <div class="flow-node" id="fn1">
+        <div class="flow-tile"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12 16.5 6 9.5 6 6 12 9.5 18 16.5 18Z"/><path d="M10 12 13 9 16 12 13 15Z"/></svg></div>
+        <div class="flow-cap">CORRIDOR</div>
+      </div>
+      <div class="flow-track d2"><i></i></div>
+      <div class="flow-node" id="fn2">
+        <div class="flow-tile"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20H20"/><path d="M12 4V9.5"/><path d="M9 12 12 9 15 12 12 15Z"/><path d="M12 15V19.5"/><path d="M9.6 17.6 12 20 14.4 17.6"/></svg></div>
+        <div class="flow-cap">RECEIVER</div>
+      </div>
+      <div class="flow-track g"><i></i></div>
+      <div class="flow-node" id="fn3">
+        <div class="flow-tile muted"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cfc8c1" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5V19"/><path d="M6 5H9"/><path d="M6 19H9"/><path d="M18 5V19"/><path d="M18 5H15"/><path d="M18 19H15"/><path d="M9.5 12 12 9.5 14.5 12 12 14.5Z"/></svg></div>
+        <div class="flow-cap">REGULATOR</div>
+      </div>
+    </div>
+
+    <!-- ===== 4 PANELS ===== -->
+    <div class="grid">
+
+      <!-- PANEL 01: SENDER (visibility is driven by html[data-step], set from the URL
+           before first paint by the inline head script) -->
+      <div class="panel" id="panel0">
+        <div class="seq">01</div>
+        <div class="phead">
+          <span class="chip-cc us">US</span>
+          <div class="cc-label">COUNTRY A · SENDER</div>
+        </div>
+        <p class="phint">Fiat on-ramp → USDC enters the corridor. Only a commitment goes on-chain — amount and recipient stay hidden.</p>
+
+        <div class="import-row" style="margin-bottom:14px;">
+          <input id="reqLoadInput" class="tk-input" type="text" placeholder="paste a payment request to fulfill…" aria-label="Paste a payment request" />
+          <button id="reqLoadBtn" class="btn-import">Load →</button>
+        </div>
+
+        <label class="fld">AMOUNT (USDC)</label>
+        <div class="amount-box">
+          <span class="cur">$</span>
+          <input id="amount" type="number" min="1" step="0.01" value="500" />
+          <span class="unit">USDC</span>
+        </div>
+
+        <label class="fld mt">DESTINATION CORRIDOR</label>
+        <select id="corridor" class="tk-select"></select>
+
+        <label class="fld mt">RECIPIENT (COUNTRY B)</label>
+        <input id="recipient" class="tk-input" type="text" value="María · Mexico City" />
+
+        <label id="compTamperLabel" class="tamper" role="checkbox" tabindex="0" aria-checked="false">
+          <span class="box" aria-hidden="true"></span>
+          <span class="txt">Forge compliance: claim a source you don't control <span>(watch the ASP reject it on-chain)</span></span>
+        </label>
+        <input id="compTamper" type="checkbox" style="display:none;" />
+
+        <div class="spacer"></div>
+        <button id="sendBtn" class="btn-primary" style="margin-top:18px;" disabled>Send into corridor →</button>
+        <div id="connectHint" class="connect-hint">Connect a wallet (or the built-in testnet key) to send.</div>
+        <div class="foot-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b645e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11H18V20H6Z"/><path d="M8.5 11V8A3.5 3.5 0 0 1 15.5 8V11"/></svg>
+          fiat → USDC · client-side compliance proof
+        </div>
+        <button id="anchorBtn" class="btn-ghost" style="margin-top:10px;width:100%;font-size:11.5px;">↗ Try a real anchor USDC on-ramp (SEP-10 + SEP-24)</button>
+        <div class="foot-note" style="opacity:.8;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b645e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 20 12 12 20 4 12Z"/></svg>
+          Real anchor handshake vs SDF's reference anchor (Circle testnet USDC). The corridor demo itself is pre-funded — this shows the live SEP on-ramp, not the deposit source.
+        </div>
+      </div>
+
+      <!-- PANEL 02: CORRIDOR -->
+      <div class="panel" id="panel1">
+        <div class="seq">02</div>
+        <div class="phead">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 19 6V11C19 16 16 19 12 21 8 19 5 16 5 11V6Z"/><path d="M9.4 11.6 12 9 14.6 11.6 12 14.2Z"/></svg>
+          <div class="cc-label">CORRIDOR · ON STELLAR</div>
+        </div>
+        <p class="phint">Inside the shielded set the ledger reveals just commitments — transfer amounts and counterparties stay shielded. (The deposit/withdraw edges are public by design.)</p>
+
+        <div class="stats">
+          <div class="stat"><div class="v" id="poolCount">—</div><div class="k">COMMITMENTS</div></div>
+          <div class="stat"><div class="v o">••••</div><div class="k">POOL BALANCE (SHIELDED)</div></div>
+        </div>
+
+        <div class="list-label">ON-CHAIN COMMITMENTS</div>
+        <div id="ledger" class="list">
+          <div class="empty"><div class="t">No confidential payments yet.</div><div class="s"><i></i> Reading live pool state from Stellar…</div></div>
+        </div>
+
+        <div class="list-label" style="margin-top:16px;">LIVE ACTIVITY <span style="opacity:.55;font-weight:400;">· on-chain events via RPC <code style="opacity:.8;">getEvents</code></span></div>
+        <div id="activityFeed" class="list">
+          <div class="empty"><div class="s"><i></i> Reading pool events from Stellar RPC…</div></div>
+        </div>
+        <span id="poolState" style="display:none;"></span>
+      </div>
+
+      <!-- PANEL 03: RECEIVER -->
+      <div class="panel" id="panel2">
+        <div class="seq">03</div>
+        <div class="phead">
+          <span class="chip-cc mx" id="rcvChip">MX</span>
+          <div class="cc-label">COUNTRY B · RECEIVER</div>
+        </div>
+        <p class="phint">Payments arrive shielded. At the off-ramp the receiver reveals the amount to convert to local fiat — compliance by design.</p>
+
+        <div class="list-label">REQUEST A PAYMENT</div>
+        <div class="import-row">
+          <input id="reqAmount" class="tk-input" type="number" min="1" step="0.01" value="500" placeholder="amount" aria-label="Request amount (USDC)" />
+          <button id="reqBtn" class="btn-import">Request →</button>
+        </div>
+        <div id="reqBox" class="export-box" style="display:none;"></div>
+
+        <div class="list-label">SHIELDED ARRIVALS</div>
+        <div class="import-row">
+          <input id="importInput" class="tk-input" type="text" placeholder="paste a bearer note to receive it…" aria-label="Paste a bearer note" />
+          <button id="importBtn" class="btn-import">Import →</button>
+        </div>
+        <div id="exportBox" class="export-box" style="display:none;"></div>
+        <div id="incoming" class="list">
+          <div class="empty"><div class="t">Nothing received yet.</div><div class="s" style="color:#6b645e;">Send a payment from Country A →</div></div>
+        </div>
+        <div class="spacer"></div>
+        <div class="foot-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b645e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20H20"/><path d="M12 4V9.5"/><path d="M9 12 12 9 15 12 12 15Z"/><path d="M12 15V19.5"/><path d="M9.6 17.6 12 20 14.4 17.6"/></svg>
+          <span id="rcvRate">USDC → MXN at the edge · rate 17.12</span>
+        </div>
+      </div>
+
+      <!-- PANEL 04: REGULATOR -->
+      <div class="panel alt" id="panel3">
+        <div class="seq">04</div>
+        <div class="phead">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cfc8c1" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5V19"/><path d="M6 5H9"/><path d="M6 19H9"/><path d="M18 5V19"/><path d="M18 5H15"/><path d="M18 19H15"/><path d="M9.5 12 12 9.5 14.5 12 12 14.5Z"/></svg>
+          <div class="cc-label dim">REGULATOR</div>
+        </div>
+        <p class="phint">On audit, the holder proves one fact — the amount — with a ZK proof made in this browser and verified on-chain. The regulator learns only that.</p>
+
+        <label class="fld">CONFIDENTIAL PAYMENT TO AUDIT</label>
+        <select id="auditSelect" class="tk-select"><option value="">— none —</option></select>
+
+        <label class="fld mt">AUDIT CONTEXT (PERIOD · REGULATOR ID)</label>
+        <input id="auditCtx" class="tk-input" type="text" value="2026-Q2 · CNBV" />
+
+        <label id="tamperLabel" class="tamper" role="checkbox" tabindex="0" aria-checked="false">
+          <span class="box" aria-hidden="true"></span>
+          <span class="txt">Tamper: claim a false amount <span>(watch it get rejected on-chain)</span></span>
+        </label>
+        <input id="tamper" type="checkbox" style="display:none;" />
+
+        <div class="spacer"></div>
+        <button id="proveBtn" class="btn-primary sm" style="margin-top:18px;">Generate &amp; verify disclosure proof</button>
+
+        <div id="result" class="proofbox">
+          <div class="ph">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a847e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 19 6V11C19 16 16 19 12 21 8 19 5 16 5 11V6Z"/><path d="M9.4 11.6 12 9 14.6 11.6 12 14.2Z"/></svg>
+            <span class="pt" style="color:#cfc8c1;">Ready</span>
+          </div>
+          <div class="pb">Zero-knowledge prover loaded.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== STEP PAGER (per-page navigation) ===== -->
+    <div class="pager">
+      <button id="navPrev" class="btn-ghost" type="button">← Back</button>
+      <span id="navLabel" class="pager-label"></span>
+      <button id="navNext" class="btn-primary" type="button">Next →</button>
+    </div>
+
+    <!-- ===== FOOTER NOTE ===== -->
+    <div class="fnote">
+      <div class="fchips">
+        <a id="verifierLink" class="fchip" href="#" target="_blank" rel="noreferrer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 20 12 12 20 4 12Z"/></svg>
+          disclosure verifier ↗
+        </a>
+        <a class="fchip" href="https://stellar.expert/explorer/testnet/contract/CD4CIE7IZSU5J7ZHVPQVEMYKO6CP7RTU3XT7TGUNUCOLKZGINVQZKFFS" target="_blank" rel="noreferrer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 20 12 12 20 4 12Z"/></svg>
+          pool contract ↗
+        </a>
+      </div>
+      <div class="fdisc">Real testnet USDC · ZK proofs verified on-chain · not audited</div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js?v=63"></script>
+</body>
+</html>
